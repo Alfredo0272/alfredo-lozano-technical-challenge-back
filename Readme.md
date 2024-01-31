@@ -1,7 +1,5 @@
 # Prueba tecnica by Alfredo Lozano
 
-## De Beers
-
 ### Descripcion
 
 ### Funcionalidades Principales
