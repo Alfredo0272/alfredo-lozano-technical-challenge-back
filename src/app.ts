@@ -3,7 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import createDebug from 'debug';
 
-const debug = createDebug('W9Final:app');
+const debug = createDebug('Challenge:app');
 export const app = express();
 debug('Starting');
 
