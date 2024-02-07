@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { User } from '../entities/user.js';
+import { User } from '../../entities/user.js';
 
 export const userSchema = new Schema<User>({
   name: {
@@ -38,6 +38,8 @@ export const userSchema = new Schema<User>({
     enum: ['Admin', 'User'],
     default: 'User',
   },
+  avatar: { publicId: String, size: Number, format: String, url: String },
+  posts: [{ type: Schema.Types.ObjectId, ref: 'Post', required: false }],
   follow: [{ type: Schema.Types.ObjectId, ref: 'User', required: false }],
   follower: [{ type: Schema.Types.ObjectId, ref: 'User', required: false }],
 });

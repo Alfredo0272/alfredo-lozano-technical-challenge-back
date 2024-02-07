@@ -1,9 +1,9 @@
 import createDebug from 'debug';
-import { Repository } from './repo';
-import { Auth } from '../services/auth.js';
+import { Repository } from '../repo';
+import { Auth } from '../../services/auth.js';
 import { UserModel } from './user.mongo.model.js';
-import { LoginUser, User } from '../entities/user.js';
-import { HttpError } from '../types/http.error.js';
+import { LoginUser, User } from '../../entities/user.js';
+import { HttpError } from '../../types/http.error.js';
 
 const debug = createDebug('Challenge:users:mongo:repo');
 
@@ -20,7 +20,7 @@ export class UsersMongoRepo implements Repository<User> {
 
   async login(loginUser: LoginUser): Promise<User> {
     const result = await UserModel.findOne({ email: loginUser.email })
-      .populate('follow', 'follower')
+      .populate('follow', 'follower', 'post')
       .exec();
     if (!result || !(await Auth.compare(loginUser.password, result.password)))
       throw new HttpError(401, 'Unauthorized');
@@ -28,13 +28,15 @@ export class UsersMongoRepo implements Repository<User> {
   }
 
   async getAll(): Promise<User[]> {
-    const result = await UserModel.find().populate('follow', 'follower').exec();
+    const result = await UserModel.find()
+      .populate('follow', 'follower', 'post')
+      .exec();
     return result;
   }
 
   async getById(id: string): Promise<User> {
     const data = await UserModel.findById(id)
-      .populate('follow', 'follower')
+      .populate('follow', 'follower', 'post')
       .exec();
     if (!data) {
       throw new HttpError(404, 'Not Found', 'User not found in file system', {
@@ -62,7 +64,7 @@ export class UsersMongoRepo implements Repository<User> {
     const data = await UserModel.findByIdAndUpdate(id, updatedItem, {
       new: true,
     })
-      .populate('follow', 'follower')
+      .populate('follow', 'follower', 'post')
       .exec();
     if (!data)
       throw new HttpError(404, 'Not Found', 'User not found in file system', {
@@ -73,7 +75,7 @@ export class UsersMongoRepo implements Repository<User> {
 
   async delete(id: string): Promise<void> {
     const result = await UserModel.findByIdAndDelete(id)
-      .populate('follow', 'follower')
+      .populate('follow', 'follower', 'post')
       .exec();
     if (!result) {
       throw new HttpError(404, 'Not Found', 'Delete not possible');
@@ -82,54 +84,81 @@ export class UsersMongoRepo implements Repository<User> {
 
   async addFollower(followId: User['id'], userId: User['id']): Promise<User> {
     if (followId === userId)
-      throw new HttpError(406, 'Not Acceptable', 'You cant add yourself');
-    const user = await UserModel.findById(userId).exec();
-    if (!user) {
+      throw new HttpError(406, 'Not Acceptable', "You can't add yourself");
+
+    const followUser = await UserModel.findById(followId)
+      .populate('follow', 'follower', 'post')
+      .exec();
+    const user = await UserModel.findById(userId)
+      .populate('follow', 'follower', 'post')
+      .exec();
+
+    if (!followUser || !user) {
       throw new HttpError(404, 'Not Found', 'User not found');
     }
 
-    if (user.follower.includes(followId as unknown as User)) {
+    if (followUser.follower.includes(user)) {
       return user;
     }
 
-    const result = await UserModel.findByIdAndUpdate(
+    const updateUser = await UserModel.findByIdAndUpdate(
       userId,
-      { $push: { follow: followId } },
-      {
-        new: true,
-      }
+      { $push: { follow: followUser } },
+      { new: true }
     ).exec();
 
-    if (!result) {
+    if (!updateUser) {
       throw new HttpError(404, 'Not Found', 'Update not possible');
     }
 
-    return result;
+    const updateFollowUser = await UserModel.findByIdAndUpdate(
+      followId,
+      { $push: { follower: user } },
+      { new: true }
+    ).exec();
+
+    if (!updateFollowUser) {
+      throw new HttpError(404, 'Not Found', 'Update not possible');
+    }
+
+    return updateUser;
   }
 
-  async removeFollower(
-    FollowerIdToRemove: User['id'],
+  async removeFollow(
+    FollowIdToRemove: User['id'],
     userId: User['id']
   ): Promise<User> {
     // eslint-disable-next-line no-useless-catch
     try {
-      const user = await UserModel.findById(userId).exec();
+      const user = await UserModel.findById(userId)
+        .populate('follow', 'follower', 'post')
+        .exec();
 
       if (!user) {
         throw new HttpError(404, 'Not Found', 'User not found');
       }
 
-      if (!user.follower.includes(FollowerIdToRemove as unknown as User)) {
+      if (!user.follow.includes(FollowIdToRemove as unknown as User)) {
         return user;
       }
 
       const updatedUser = await UserModel.findByIdAndUpdate(
         userId,
-        { $pull: { friends: FollowerIdToRemove } },
+        { $pull: { follow: FollowIdToRemove } },
         { new: true }
       ).exec();
 
       if (!updatedUser) {
+        throw new HttpError(404, 'Not Found', 'Update not possible');
+      }
+
+      const updateUnFollowUser = await UserModel.findByIdAndUpdate(
+        FollowIdToRemove,
+        { $pull: { follower: userId } },
+        { new: true }
+      ).exec();
+
+      if (!updateUnFollowUser) {
         throw new HttpError(404, 'Not Found', 'Update not possible');
       }
 

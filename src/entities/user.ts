@@ -1,4 +1,5 @@
 import { ImgData } from '../types/img.data';
+import { Post } from './posts';
 
 export type LoginUser = {
   email: string;
@@ -16,4 +17,5 @@ export type User = LoginUser & {
   role: 'Admin' | 'User';
   follow: User[];
   follower: User[];
+  posts: Post[];
 };

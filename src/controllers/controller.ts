@@ -27,6 +27,18 @@ export abstract class Controller<X extends { id: unknown }> {
     }
   }
 
+  async search(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await this.repo.search({
+        key: Object.entries(req.query)[0][0] as keyof X,
+        value: Object.entries(req.query)[0][1],
+      });
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await this.repo.create(req.body);
@@ -42,6 +54,17 @@ export abstract class Controller<X extends { id: unknown }> {
     try {
       const result = await this.repo.update(req.params.id, req.body);
       res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      await this.repo.delete(req.params.id);
+      res.status(204);
+      res.statusMessage = 'No Content';
+      res.json({});
     } catch (error) {
       next(error);
     }
