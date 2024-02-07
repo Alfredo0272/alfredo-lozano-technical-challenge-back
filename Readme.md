@@ -1,6 +1,8 @@
 # Prueba tecnica by Alfredo Lozano
 
-### Descripcion
+
+## Descripcion
+
 
 ### Funcionalidades Principales
 
